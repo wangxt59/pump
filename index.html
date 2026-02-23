@@ -180,6 +180,51 @@
       font-size: 0.88rem;
     }
 
+    .gallery-item img {
+      cursor: pointer;
+    }
+
+    /* 放大查看 - 遮罩层 */
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.9);
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .lightbox.active {
+      display: flex;
+    }
+
+    .lightbox img {
+      max-width: 95vw;
+      max-height: 90vh;
+      object-fit: contain;
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      width: 40px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .lightbox-close:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
     /* 关于 */
     .about {
       background: linear-gradient(180deg, transparent 0%, rgba(196, 181, 160, 0.12) 50%, transparent 100%);
@@ -262,50 +307,7 @@
 
   <section id="works">
     <h2 class="section-title">作品展示</h2>
-    <div class="gallery">
-      <article class="gallery-item">
-        <img src="images/work1.jpg" alt="作品 1" onerror="this.src='https://picsum.photos/600/400?random=1'">
-        <div class="caption">
-          <strong>作品标题一</strong>
-          <span>插画 / 2024</span>
-        </div>
-      </article>
-      <article class="gallery-item">
-        <img src="images/work2.jpg" alt="作品 2" onerror="this.src='https://picsum.photos/600/400?random=2'">
-        <div class="caption">
-          <strong>作品标题二</strong>
-          <span>概念设计 / 2024</span>
-        </div>
-      </article>
-      <article class="gallery-item">
-        <img src="images/work3.jpg" alt="作品 3" onerror="this.src='https://picsum.photos/600/400?random=3'">
-        <div class="caption">
-          <strong>作品标题三</strong>
-          <span>角色设计 / 2024</span>
-        </div>
-      </article>
-      <article class="gallery-item">
-        <img src="images/work4.jpg" alt="作品 4" onerror="this.src='https://picsum.photos/600/400?random=4'">
-        <div class="caption">
-          <strong>作品标题四</strong>
-          <span>插画 / 2024</span>
-        </div>
-      </article>
-      <article class="gallery-item">
-        <img src="images/work5.jpg" alt="作品 5" onerror="this.src='https://picsum.photos/600/400?random=5'">
-        <div class="caption">
-          <strong>作品标题五</strong>
-          <span>场景 / 2024</span>
-        </div>
-      </article>
-      <article class="gallery-item">
-        <img src="images/work6.jpg" alt="作品 6" onerror="this.src='https://picsum.photos/600/400?random=6'">
-        <div class="caption">
-          <strong>作品标题六</strong>
-          <span>插画 / 2024</span>
-        </div>
-      </article>
-    </div>
+    <div class="gallery" id="gallery"></div>
   </section>
 
   <section id="about" class="about">
@@ -330,5 +332,93 @@
   <footer>
     <p>© 2024 你的名字 · 个人作品集</p>
   </footer>
+
+  <div class="lightbox" id="lightbox" aria-hidden="true">
+    <button class="lightbox-close" type="button" aria-label="关闭">×</button>
+    <img src="" alt="" id="lightbox-img">
+  </div>
+
+  <script>
+    (function () {
+      const gallery = document.getElementById("gallery");
+      const lightbox = document.getElementById("lightbox");
+      const lightboxImg = document.getElementById("lightbox-img");
+
+      if (!gallery) return;
+
+      function getTitleFromFilename(filename) {
+        const lastDot = filename.lastIndexOf(".");
+        return lastDot > 0 ? filename.slice(0, lastDot) : filename;
+      }
+
+      function esc(s) {
+        const div = document.createElement("div");
+        div.textContent = s;
+        return div.innerHTML;
+      }
+
+      function openLightbox(src, alt) {
+        lightboxImg.src = src;
+        lightboxImg.alt = alt;
+        lightbox.classList.add("active");
+        lightbox.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeLightbox() {
+        lightbox.classList.remove("active");
+        lightbox.setAttribute("aria-hidden", "true");
+        document.body.style.overflow = "";
+      }
+
+      lightbox.querySelector(".lightbox-close").addEventListener("click", closeLightbox);
+      lightbox.addEventListener("click", function (e) {
+        if (e.target === lightbox) closeLightbox();
+      });
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") closeLightbox();
+      });
+
+      function createItem(filename, index) {
+        const src = "images/" + encodeURIComponent(filename);
+        const title = getTitleFromFilename(filename);
+
+        const article = document.createElement("article");
+        article.className = "gallery-item";
+        article.innerHTML = `
+          <img src="${src}" alt="${esc(title)}" loading="lazy"
+            onerror="this.src='https://picsum.photos/600/400?random=${index + 1}'">
+          <div class="caption">
+            <strong>${esc(title)}</strong>
+            <span>插画 / ${new Date().getFullYear()}</span>
+          </div>
+        `;
+        const img = article.querySelector("img");
+        img.addEventListener("click", function () {
+          openLightbox(src, title);
+        });
+        return article;
+      }
+
+      fetch("images.json")
+        .then((res) => {
+          if (!res.ok) throw new Error("加载图片列表失败");
+          return res.json();
+        })
+        .then((files) => {
+          if (!Array.isArray(files) || files.length === 0) {
+            gallery.innerHTML = '<p style="color: var(--muted); text-align: center;">当前 images 文件夹中还没有可展示的图片。</p>';
+            return;
+          }
+          files.forEach((filename, index) => {
+            gallery.appendChild(createItem(filename, index));
+          });
+        })
+        .catch((err) => {
+          console.error(err);
+          gallery.innerHTML = '<p style="color: var(--muted); text-align: center;">图片加载出现问题，请稍后重试。</p>';
+        });
+    })();
+  </script>
 </body>
 </html>
